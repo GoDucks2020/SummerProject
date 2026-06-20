@@ -23,9 +23,9 @@ pshoot = True
 clock = pygame.time.Clock()
 FPS = 60
 
-grassImage = pygame.image.load('/Users/jacobkerr/ComputerProgramingFinal test/summerProject/.venv/grass.png')
-bowSpriteSheet = pygame.image.load('/Users/jacobkerr/ComputerProgramingFinal test/summerProject/.venv/bowSpriteSheet.png').convert_alpha()
-arrowImage = pygame.image.load('/Users/jacobkerr/ComputerProgramingFinal test/summerProject/.venv/arrow.png').convert_alpha()
+grassImage = pygame.image.load('grass.png')
+bowSpriteSheet = pygame.image.load('bowSpriteSheet.png').convert_alpha()
+arrowImage = pygame.image.load('arrow.png').convert_alpha()
 
 def getImage(sheet, xframe, yframe, width, height, scale, color):
     image = pygame.Surface((width, height)).convert_alpha()
