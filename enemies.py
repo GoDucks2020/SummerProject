@@ -67,14 +67,28 @@ class Enemy(pygame.sprite.Sprite):
         self.by = 0
         self.grav = 0
         self.health = 6
+        self.jumpable = False
         self.direction = None
         self.healthBar = HealthBar(self, self.health)
         enemyHealth.add(self.healthBar)
 
     def update(self):
         global points
-        self.grav += 1
-        # self.y += self.grav
+        self.y += self.grav
+        self.bx = self.intx + cameraX + self.x
+        self.by = self.inty + cameraY + self.y
+        self.rect.x = self.bx
+        self.rect.y = self.by
+        while (pygame.sprite.spritecollide(self, map.nonPhaseableTiles, False) or
+               pygame.sprite.spritecollide(self, map.barrierTiles, False)):
+            self.y -= 1
+            self.bx = self.intx + cameraX + self.x
+            self.by = self.inty + cameraY + self.y
+            self.rect.x = self.bx
+            self.rect.y = self.by
+            self.grav = 0
+            self.jumpable = True
+
         if self.rect.x < player.rect.x:
             self.x += 5
             self.direction = 'right'
@@ -85,20 +99,31 @@ class Enemy(pygame.sprite.Sprite):
         self.by = self.inty + cameraY + self.y
         self.rect.x = self.bx
         self.rect.y = self.by
-
-        while (pygame.sprite.spritecollide(self, map.nonPhaseableTiles, False) or
-               pygame.sprite.spritecollide(self, map.barrierTiles, False)):
-            if self.direction == 'right':
-                self.x -= 1
-            else:
-                self.x += 1
-            self.bx = self.intx + cameraX + self.x
-            self.by = self.inty + cameraY + self.y
-            self.rect.x = self.bx
-            self.rect.y = self.by
+        if (pygame.sprite.spritecollide(self, map.nonPhaseableTiles, False) or
+            pygame.sprite.spritecollide(self, map.barrierTiles, False)):
+            while (pygame.sprite.spritecollide(self, map.nonPhaseableTiles, False) or
+                   pygame.sprite.spritecollide(self, map.barrierTiles, False)):
+                if self.direction == 'right':
+                    self.x -= 1
+                else:
+                    self.x += 1
+                self.bx = self.intx + cameraX + self.x
+                self.by = self.inty + cameraY + self.y
+                self.rect.x = self.bx
+                self.rect.y = self.by
+            if self.jumpable:
+                self.grav = -10
+                self.y += self.grav
+                self.bx = self.intx + cameraX + self.x
+                self.by = self.inty + cameraY + self.y
+                self.rect.x = self.bx
+                self.rect.y = self.by
+                self.jumpable = False
+            print('jump!')
         if self.health <= 0:
             self.kill()
             points += 1
+        self.grav += 1
 
 
 class HealthBar(pygame.sprite.Sprite):
@@ -211,10 +236,10 @@ class Map(pygame.sprite.Sprite):
         self.x: int = 0
         self.y: int = 0
         self.tileSize = 30
-        self.grid = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
-                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,4,4,4,4,4,4,4,4,2,1,1,1,0],
-                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,4,4,4,4,4,4,4,4,4,4,4,2,1],
-                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,4,4,4,4,4,4,4,4,4,4,4,4,2],
+        self.grid = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,4,4,4,4,4,4,4,4,2,1,1,1,0],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,4,4,4,4,4,4,4,4,4,4,4,2,1],
+                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,4,4,4,4,4,4,4,4,4,4,4,4,2],
                      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,4,4,4,4,4,4,4,4,4,4,4,4,2],
                      [0,0,0,0,0,0,0,0,0,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,4,4,4,4,4,4,4,4,2],
                      [0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,4,4,4,4,2],
@@ -363,6 +388,7 @@ while running:
     bow_animations = getImage(bowSpriteSheet, bFrame, 0, 100, 100, 1, (0, 0, 0))
 
     clock.tick(FPS)
+    enemies.update()
     enemyHealth.update()
     HEALTH.update()
     playerHealthBars.update()
@@ -479,7 +505,6 @@ while running:
         th.Thread(target=jump).start()
 
     grav += 1
-    enemies.update()
     map.update()
 
     while pygame.sprite.spritecollide(player, map.nonPhaseableTiles, False):
