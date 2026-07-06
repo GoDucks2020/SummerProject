@@ -1,7 +1,7 @@
 import pygame
 import threading as th
-from time import *
-from math import *
+from time import sleep
+from math import sin, cos, pi, atan2
 
 pygame.init()
 
@@ -15,14 +15,12 @@ pygame.display.set_caption('Enemies')
 
 cameraY = 0
 cameraX = 0
-grav = 0
 tick = 0
 bFrame = 0
 pFrame = 0
 rTick = 0
 iFrame = 0
 points = 0
-pshoot = True
 jumpable = True
 invulnerable = False
 
@@ -41,7 +39,6 @@ def drawText(text, font, textColor, x, y):
     img = font.render(text, True, textColor)
     screen.blit(img, (x, y))
 
-
 def getImage(sheet, xframe, yframe, width, height, scale, color):
     image = pygame.Surface((width, height)).convert_alpha()
     image.blit(sheet, (0, 0), ((xframe * width), (yframe * height), width, height))
@@ -49,14 +46,14 @@ def getImage(sheet, xframe, yframe, width, height, scale, color):
     image.set_colorkey(color)
     return image
 
-
 arrowSprite = getImage(arrowImage, 0, 0, 20, 5, 2, (0, 0, 0))
-
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y, color):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((20, 20))
+        self.group = pygame.sprite.Group()
+        self.group.add(self)
         self.rect = self.image.get_rect()
         self.image.fill(color)
         self.x = x
@@ -70,8 +67,8 @@ class Enemy(pygame.sprite.Sprite):
         self.health = 6
         self.jumpable = False
         self.direction = None
-        self.healthBar = HealthBar(self, self.health)
-        enemyHealth.add(self.healthBar)
+        self.healthBar = HealthBar(self, 6)
+        healthBars.add(self.healthBar)
 
     def update(self):
         global points
@@ -80,16 +77,17 @@ class Enemy(pygame.sprite.Sprite):
         self.by = self.inty + cameraY + self.y
         self.rect.x = self.bx
         self.rect.y = self.by
-        while (pygame.sprite.spritecollide(self, map.nonPhaseableTiles, False) or
-               pygame.sprite.spritecollide(self, map.barrierTiles, False)):
-            self.y -= 1
-            self.bx = self.intx + cameraX + self.x
-            self.by = self.inty + cameraY + self.y
-            self.rect.x = self.bx
-            self.rect.y = self.by
-            self.grav = 0
-            if self.x != self.jx:
-                self.jumpable = True
+        for mp in maps:
+            while (pygame.sprite.spritecollide(self, mp.nonPhaseableTiles, False) or
+                   pygame.sprite.spritecollide(self, mp.barrierTiles, False)):
+                self.y -= 1
+                self.bx = self.intx + cameraX + self.x
+                self.by = self.inty + cameraY + self.y
+                self.rect.x = self.bx
+                self.rect.y = self.by
+                self.grav = 0
+                if self.x != self.jx:
+                    self.jumpable = True
 
         if self.rect.x < player.rect.x:
             self.x += 5
@@ -101,112 +99,64 @@ class Enemy(pygame.sprite.Sprite):
         self.by = self.inty + cameraY + self.y
         self.rect.x = self.bx
         self.rect.y = self.by
-        if (pygame.sprite.spritecollide(self, map.nonPhaseableTiles, False) or
-            pygame.sprite.spritecollide(self, map.barrierTiles, False)):
-            while (pygame.sprite.spritecollide(self, map.nonPhaseableTiles, False) or
-                   pygame.sprite.spritecollide(self, map.barrierTiles, False)):
-                if self.direction == 'right':
-                    self.x -= 1
-                else:
-                    self.x += 1
-                self.bx = self.intx + cameraX + self.x
-                self.by = self.inty + cameraY + self.y
-                self.rect.x = self.bx
-                self.rect.y = self.by
-            if self.jumpable:
-                self.jx = self.x
-                self.grav = -11
-                self.y += self.grav
-                self.bx = self.intx + cameraX + self.x
-                self.by = self.inty + cameraY + self.y
-                self.rect.x = self.bx
-                self.rect.y = self.by
-                self.jumpable = False
+        for mp in maps:
+            if (pygame.sprite.spritecollide(self, mp.nonPhaseableTiles, False) or
+                pygame.sprite.spritecollide(self, mp.barrierTiles, False)):
+                while (pygame.sprite.spritecollide(self, mp.nonPhaseableTiles, False) or
+                       pygame.sprite.spritecollide(self, mp.barrierTiles, False)):
+                    if self.direction == 'right':
+                        self.x -= 1
+                    else:
+                        self.x += 1
+                    self.bx = self.intx + cameraX + self.x
+                    self.by = self.inty + cameraY + self.y
+                    self.rect.x = self.bx
+                    self.rect.y = self.by
+                if self.jumpable:
+                    self.jx = self.x
+                    self.grav = -11
+                    self.y += self.grav
+                    self.bx = self.intx + cameraX + self.x
+                    self.by = self.inty + cameraY + self.y
+                    self.rect.x = self.bx
+                    self.rect.y = self.by
+                    self.jumpable = False
         if self.health <= 0:
             self.kill()
             points += 1
         self.grav += 1
 
-
 class HealthBar(pygame.sprite.Sprite):
-    def __init__(self, enemy, intHealth):
+    def __init__(self, target, intHealth):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((40, 10))
+        self.health = pygame.Rect(0, 0, 36, 6)
+        self.healthInc = 6
+        if target == player:
+            self.image = pygame.Surface((58, 12))
+            self.health = pygame.Rect(0, 0, target.health * 9, 8)
+            self.healthInc = 9
         self.image.fill((0, 0, 0))
         self.rect = self.image.get_rect()
-        self.enemy = enemy
-        self.rect.x = enemy.rect.x - enemy.rect.width / 2
-        self.rect.y = enemy.rect.y - 20
+        self.target = target
         self.intHealth = intHealth
-        self.healthy = Health(self, self.enemy)
-        HEALTH.add(self.healthy)
+        self.hp = intHealth
 
     def update(self):
-        if self.enemy.health <= 0:
+        self.hp = self.target.health
+        self.rect.x = self.target.rect.x - self.target.rect.width / 2
+        self.rect.y = self.target.rect.y - 20
+        self.health.left = self.rect.x + 2
+        self.health.centery = self.rect.centery
+        self.health.width = self.hp * self.healthInc
+        if self.target.health <= 0:
             self.kill()
-        self.rect.x = self.enemy.rect.x - self.enemy.rect.width / 2
-        self.rect.y = self.enemy.rect.y - 20
 
-
-class Health(pygame.sprite.Sprite):
-    def __init__(self, healthBar, enemy):
-        pygame.sprite.Sprite.__init__(self)
-        self.healthBar = healthBar
-        self.enemy = enemy
-        self.image = pygame.Surface((36, 6))
-        self.image.fill((255, 0, 0))
-        self.rect = self.image.get_rect()
-
-    def update(self):
-        if self.enemy.health <= 0:
-            self.kill()
-        try:
-            self.image = pygame.Surface((self.enemy.health * 6, 6))
-            self.image.fill((255, 0, 0))
-        except:
-            pass
-        self.rect.x = self.healthBar.rect.x + 2
-        self.rect.centery = self.healthBar.rect.centery
-        pass
-
-
-class PlayerHealthBar(pygame.sprite.Sprite):
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((58, 12))
-        self.image.fill((0, 0, 0))
-        self.rect = self.image.get_rect()
-
-    def update(self):
-        if player.health <= 0:
-            self.kill()
-        self.rect.x = player.rect.x - player.rect.width / 2
-        self.rect.y = player.rect.y - 20
-
-
-class PlayerHealth(pygame.sprite.Sprite):
-    def __init__(self, healthBar):
-        pygame.sprite.Sprite.__init__(self)
-        self.healthBar = healthBar
-        self.image = pygame.Surface((54, 8))
-        self.image.fill((255, 0, 0))
-        self.rect = self.image.get_rect()
-
-    def update(self):
-        if player.health <= 0:
-            self.kill()
-            player.kill()
-        try:
-            self.image = pygame.Surface((player.health * 9, 8))
-            self.image.fill((255, 0, 0))
-        except:
-            pass
-        self.rect.x = self.healthBar.rect.x + 2
-        self.rect.centery = self.healthBar.rect.centery
-
+    def draw(self):
+        pygame.draw.rect(screen, (255, 0, 0), self.health)
 
 class Projectile(pygame.sprite.Sprite):
-    def __init__(self, intx, inty, mouseX, mouseY, sped, damage):
+    def __init__(self, intx, inty, mx, my, sped, damage):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.surface.Surface((20, 20))
         self.image.fill((0, 0, 0))
@@ -217,8 +167,8 @@ class Projectile(pygame.sprite.Sprite):
         self.rect.y = self.y
         self.intx = intx
         self.inty = inty
-        self.mouseX = mouseX
-        self.mouseY = mouseY
+        self.mouseX = mx
+        self.mouseY = my
         self.sped = sped
         self.angle = atan2(self.mouseY - self.y, self.mouseX - self.x)
         self.damage = damage
@@ -230,7 +180,6 @@ class Projectile(pygame.sprite.Sprite):
         self.rect.y = self.y + cameraY - self.inty - 10
         rotatedArrow = pygame.transform.rotate(arrowSprite.convert_alpha(), (((atan2(self.mouseY + (sin(pi) * atan2(player.rect.x * 12.5, player.rect.y - 19)) - player.rect.y - player.rect.height / 2, self.mouseX + (sin(pi) * atan2(player.rect.x * 12.5, player.rect.y - 19)) - player.rect.x - player.rect.width / 2 - (sin(pi) * atan2(player.rect.x * 12.5, player.rect.y - 19))) - 2 * pi + (sin(pi) * atan2(player.rect.x * 12.5, player.rect.y - 19))) * -1) * 180 / pi))
         screen.blit(rotatedArrow, (self.rect.x - ((rotatedArrow.get_width() - 5) / 2) - sin(atan2(self.mouseX - player.rect.x - player.rect.width / 2, self.mouseY - player.rect.y - player.rect.height / 2)) * 12 - (sin(pi) * atan2(player.rect.x * 12.5, player.rect.y - 19)), self.rect.y - ((rotatedArrow.get_height() - 5) / 2 + (sin(pi) * atan2(player.rect.x * 12.5, player.rect.y - 19))) - cos(atan2(self.mouseX - player.rect.x - player.rect.width / 2, self.mouseY - player.rect.y - player.rect.height / 2)) * 12 + 7))
-
 
 class Map(pygame.sprite.Sprite):
     def __init__(self):
@@ -303,7 +252,6 @@ class Tile(pygame.sprite.Sprite):
         self.rect.x = self.x
         self.rect.y = self.y
 
-
 class Player(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int) -> None:
         pygame.sprite.Sprite.__init__(self)
@@ -311,72 +259,68 @@ class Player(pygame.sprite.Sprite):
         self.image.fill((100, 100, 255))
         self.rect = self.image.get_rect()
         self.direction = None
+        self.jumpable = True
+        self.sCooldown = False
         self.rect.y = y
         self.rect.x = 615
         self.health = 6
+        self.grav = 0
         self.x = x
         self.y = y
 
+    def shoot(self, sped, damage):
+        MouseX = pygame.mouse.get_pos()[0]
+        MouseY = pygame.mouse.get_pos()[1]
+        if not self.sCooldown:
+            self.sCooldown = True
+            if MouseX < SCREEN_WIDTH / 2:
+                projectiles.add(Projectile(cameraX, cameraY, MouseX, MouseY, sped, damage))
+            else:
+                projectiles.add(Projectile(cameraX, cameraY, MouseX, MouseY, sped, damage))
+            sleep(1)
+            self.sCooldown = False
 
-def pShoot(sped, damage):
-    global pshoot
-    mouse = pygame.mouse.get_pos()
-    mouseX = mouse[0]
-    mouseY = mouse[1]
-    if pshoot:
-        pshoot = False
-        if mouse[0] < SCREEN_WIDTH / 2:
-            projectiles.add(Projectile(cameraX, cameraY, mouseX, mouseY, sped, damage))
-        else:
-            projectiles.add(Projectile(cameraX, cameraY, mouseX, mouseY, sped, damage))
-        sleep(1)
-        pshoot = True
+    def jump(self):
+        if self.jumpable:
+            self.jumpable = False
+            sleep(0.02)
+            self.grav = -20
+            self.jumpable = True
 
 def checkCollisionY() -> bool:
-    for tile in map.nonPhaseableTiles:
-        if tile.type == 1:
-            if tile.rect.top == player.rect.bottom and player.rect.left - player.rect.width < tile.rect.x < player.rect.right:
-                return True
+    for mp in maps:
+        for t in mp.nonPhaseableTiles:
+            if t.type == 1:
+                if t.rect.top == player.rect.bottom and player.rect.left - player.rect.width < t.rect.x < player.rect.right:
+                    return True
     return False
 
 def checkCollisionYBottom() -> bool:
-    for tile in map.nonPhaseableTiles:
-        if tile.rect.bottom == player.rect.top and player.rect.left - player.rect.width < tile.rect.x < player.rect.right:
-            return True
+    for mp in maps:
+        for t in mp.nonPhaseableTiles:
+            if t.rect.bottom == player.rect.top and player.rect.left - player.rect.width < t.rect.x < player.rect.right:
+                return True
     return False
-
-def jump():
-    global grav, jumpable
-    if jumpable:
-        jumpable = False
-        sleep(0.02)
-        grav = -20
-        jumpable = True
 
 maps = []
 
 player = Player(SCREEN_WIDTH / 2 - 15, SCREEN_HEIGHT / 2 - 15)
-playerHealthBar = PlayerHealthBar()
-playerHealth = PlayerHealth(playerHealthBar)
 map1 = Map()
 
 players = pygame.sprite.Group()
 projectiles = pygame.sprite.Group()
 enemies = pygame.sprite.Group()
-enemyHealth = pygame.sprite.Group()
-playerHealthBars = pygame.sprite.Group()
-playerHealths = pygame.sprite.Group()
+healthBars = pygame.sprite.Group()
 HEALTH = pygame.sprite.Group()
 
 players.add(player)
 enemies.add(Enemy(250, 580, 'red'))
-playerHealthBars.add(playerHealthBar)
-playerHealths.add(playerHealth)
+healthBars.add(HealthBar(player, player.health))
 
 maps.append(map1)
 
-for map in maps:
-    map.render()
+for m in maps:
+    m.render()
 
 running = True
 while running:
@@ -395,22 +339,18 @@ while running:
 
     clock.tick(FPS)
     enemies.update()
-    enemyHealth.update()
     HEALTH.update()
-    playerHealthBars.update()
-    playerHealths.update()
+    healthBars.update()
+    projectiles.update()
 
-    # projectiles.draw(screen)
-    for map in maps:
-        map.draw(screen)
+    for m in maps:
+        m.draw(screen)
     players.draw(screen)
     enemies.draw(screen)
-    enemyHealth.draw(screen)
     HEALTH.draw(screen)
-    playerHealthBars.draw(screen)
-    playerHealths.draw(screen)
-
-    projectiles.update()
+    healthBars.draw(screen)
+    for h in healthBars:
+        h.draw()
 
     if player.health <= 0:
         drawText(f"You ended with {points} points!", textFont, 'black', SCREEN_WIDTH / 2 - 250, SCREEN_HEIGHT / 5)
@@ -422,42 +362,42 @@ while running:
                     projectile.kill()
                     enemy.health -= projectile.damage
                     print('damage:' + str(projectile.damage) + 'health:' + str(enemy.health))
-    for map in maps:
-        for tile in map.nonPhaseableTiles:
+    for m in maps:
+        for tile in m.nonPhaseableTiles:
             if pygame.sprite.spritecollide(tile, projectiles, False):
                 for proj in projectiles:
-                    if (pygame.sprite.spritecollide(proj, map.nonPhaseableTiles, False) or
-                        pygame.sprite.spritecollide(proj, map.barrierTiles, False)):
+                    if (pygame.sprite.spritecollide(proj, m.nonPhaseableTiles, False) or
+                        pygame.sprite.spritecollide(proj, m.barrierTiles, False)):
                             proj.kill()
-        for tile in map.barrierTiles:
+        for tile in m.barrierTiles:
             if pygame.sprite.spritecollide(tile, projectiles, False):
                 for proj in projectiles:
-                    if (pygame.sprite.spritecollide(proj, map.nonPhaseableTiles, False) or
-                        pygame.sprite.spritecollide(proj, map.barrierTiles, False)):
+                    if (pygame.sprite.spritecollide(proj, m.nonPhaseableTiles, False) or
+                        pygame.sprite.spritecollide(proj, m.barrierTiles, False)):
                             proj.kill()
     if pygame.sprite.spritecollide(player, enemies, False) and not invulnerable:
         player.health -= 2
         iFrame = 60
 
-    for i in range(grav):
+    for i in range(player.grav):
         if not checkCollisionY():
             cameraY -= 1
-            for map in maps:
-                map.update()
+            for m in maps:
+                m.update()
         else:
-            grav = 0
-    for i in range(-grav):
+            player.grav = 0
+    for i in range(-player.grav):
         if not checkCollisionYBottom():
             cameraY += 1
-            for map in maps:
-                map.update()
+            for m in maps:
+                m.update()
         else:
-            grav = 0
+            player.grav = 0
 
     mouse = pygame.mouse.get_pos()
     mouseHeld = pygame.mouse.get_pressed()
 
-    if mouseHeld[0] and pshoot:
+    if mouseHeld[0] and player.shoot:
         if tick < 30:
             tick += 1
         else:
@@ -495,13 +435,13 @@ while running:
             mouseX = mouse[0]
             mouseY = mouse[1]
         elif event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1 and pshoot:
+            if event.button == 1 and player.shoot:
                 if bFrame == 0:
-                    th.Thread(target=pShoot, args=(12.5, 1)).start()
+                    th.Thread(target=player.shoot, args=(12.5, 1)).start()
                 elif bFrame == 1:
-                    th.Thread(target=pShoot, args=(17.5, 3)).start()
+                    th.Thread(target=player.shoot, args=(17.5, 3)).start()
                 elif bFrame == 2:
-                    th.Thread(target=pShoot, args=(30, 5)).start()
+                    th.Thread(target=player.shoot, args=(30, 5)).start()
                 bFrame = 0
 
     keys = pygame.key.get_pressed()
@@ -512,18 +452,18 @@ while running:
         cameraX -= 10
         player.direction = 'right'
     if keys[pygame.K_SPACE] and checkCollisionY() and player.health > 0:
-        th.Thread(target=jump).start()
+        th.Thread(target=player.jump).start()
 
-    grav += 1
-    for map in maps:
-        map.update()
-    for map in maps:
-        while pygame.sprite.spritecollide(player, map.nonPhaseableTiles, False):
+    player.grav += 1
+    for m in maps:
+        m.update()
+    for m in maps:
+        while pygame.sprite.spritecollide(player, m.nonPhaseableTiles, False):
             if player.direction == 'left':
                 cameraX -= 1
             else:
                 cameraX += 1
-            map.update()
+            m.update()
 
     pygame.display.flip()
     screen.fill((200, 200, 200))
